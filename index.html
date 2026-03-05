@@ -80,7 +80,6 @@ const getExpectedChars = (answerText) => {
 function App() {
   const [questions, setQuestions] = useState(allQuestions);
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [answers, setAnswers] = useState({});
   
   const [currentUser, setCurrentUser] = useState(() => {
     return localStorage.getItem('quiz_currentUser') || 'User1';
@@ -88,6 +87,11 @@ function App() {
 
   const [history, setHistory] = useState(() => {
     const saved = localStorage.getItem(`quiz_history_${localStorage.getItem('quiz_currentUser') || 'User1'}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [answers, setAnswers] = useState(() => {
+    const saved = localStorage.getItem(`quiz_answers_${localStorage.getItem('quiz_currentUser') || 'User1'}`);
     return saved ? JSON.parse(saved) : {};
   });
 
@@ -104,13 +108,20 @@ function App() {
     localStorage.setItem(`quiz_history_${currentUser}`, JSON.stringify(history));
   }, [history, currentUser]);
 
+  useEffect(() => {
+    localStorage.setItem(`quiz_answers_${currentUser}`, JSON.stringify(answers));
+  }, [answers, currentUser]);
+
   const handleUserChange = (e) => {
     const newUser = e.target.value;
     setCurrentUser(newUser);
     localStorage.setItem('quiz_currentUser', newUser);
-    const saved = localStorage.getItem(`quiz_history_${newUser}`);
-    setHistory(saved ? JSON.parse(saved) : {});
-    setAnswers({});
+    
+    const savedHistory = localStorage.getItem(`quiz_history_${newUser}`);
+    setHistory(savedHistory ? JSON.parse(savedHistory) : {});
+
+    const savedAnswers = localStorage.getItem(`quiz_answers_${newUser}`);
+    setAnswers(savedAnswers ? JSON.parse(savedAnswers) : {});
   };
 
   const updateHistory = () => {
