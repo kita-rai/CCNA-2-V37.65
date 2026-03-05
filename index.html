@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz App Export (Persistent)</title>
+<title>Quiz App Export</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>tailwind.config = { darkMode: 'class' }</script>
 <style>
+  /* カスタムスクロールバー */
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -20,7 +21,6 @@
 <div id="root"></div>
 <script type="text/babel">
 const { useState, useEffect } = React;
-
 const allQuestions = [
   {
     "id": "NO.1",
@@ -33,9 +33,9 @@ const allQuestions = [
       "E. プロトコルディスカバリをサポートします。"
     ],
     "answer": "A D",
-    "explanation": "Weighted Random Early Detection (WRED) は、単なる輻輳回避メカニズムです。WREDは、IP Precedenceに基づいてパケットを選択的にドロップします。..."
+    "explanation": "Weighted Random Early Detection (WRED) は、単なる輻輳回避メカニズムです。WREDは、IP Precedenceに基づいてパケットを選択的にドロップします。エッジルーターは、ネットワークに入る際にパケットにIP Precedenceを割り当てます。\nパケットが到着すると、次のイベントが発生します。\n1. 平均キューサイズが計算されます。\n2. 平均が最小キューしきい値より小さい場合、到着したパケットはキューに入れられます。\n3. 平均がそのトラフィックタイプの最小キューしきい値とインターフェースの最大しきい値の間にある場合、そのトラフィックタイプのパケットドロップ確率に応じて、パケットはドロップされるかキューに入れられます。\n4. 平均キューサイズが最大しきい値より大きい場合、パケットはドロップされます。WREDは、出力インターフェースが輻輳の兆候を示し始めたときにパケットを選択的にドロップすることにより、テール ドロップ（キューが満杯になったときにパケットがドロップされること）の可能性を低減します（したがって、キューが満杯になるのを防ぐことで輻輳を緩和できます）。キューが満杯になるまで待つのではなく、一部のパケットを早期にドロップすることで、WREDは一度に大量のパケットがドロップされるのを回避し、グローバル同期の可能性を最小限に抑えます。これにより、WREDは常に伝送回線を最大限に活用できます。\nWREDは通常、IP Precedenceに基づいてパケットを選択的にドロップします。IP Precedenceが高いパケットは、IP Precedenceが低いパケットよりもドロップされる可能性が低くなります。したがって、パケットの優先度が高いほど、そのパケットが配送される確率が高くなります。"
   },
-  
+  {
     "id": "NO.2",
     "question": "WPA3はワイヤレスネットワークにおいて何を提供しますか？",
     "options": [
@@ -14352,7 +14352,7 @@ const allQuestions = [
   },
   {
     "id": "NO.1237",
-    "question": "この設定の効果は何ですか？",
+    "question": "[補足説明] 展示画像（設定画面やネットワークトポロジ図など）の内容を確認してください。\nこの設定の効果は何ですか？",
     "options": [
       "A. スイッチポートインターフェースのトラスト状態がアン・トラステッドになります",
       "B. インターフェースが別のスイッチに接続されるまで、スイッチポートはアドミニストレーティブダウンのままになります",
@@ -14360,7 +14360,7 @@ const allQuestions = [
       "D. 着信パケットをトラストまたはアン・トラストに設定するまで、スイッチポートはダウンしたままになります"
     ],
     "answer": "A",
-    "explanation": "ダイナミックARPインスペクション（DAI）は...DAIを有効にすると、すべてのポートがアン・トラステッドポートになります。"
+    "explanation": "ダイナミックARPインスペクション（DAI）は、ネットワーク内のARPパケットを検証するセキュリティ機能です。無効なIP-to-MACアドレスバインディングを持つARPパケットを傍受し、ログに記録し、破棄します。この機能は、特定のマン・イン・ザ・ミドル攻撃からネットワークを保護します。DAIを有効にすると、すべてのポートがアン・トラステッドポートになります。"
   }
 ];
 
@@ -14369,36 +14369,14 @@ const getExpectedChars = (answerText) => {
 };
 
 function App() {
-  // 初期化時にlocalStorageから読み込む
-  const [userName, setUserName] = useState(() => localStorage.getItem('quiz_active_user') || 'Guest');
-  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('quiz_dark_mode') === 'true');
+  const [questions, setQuestions] = useState(allQuestions);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [answers, setAnswers] = useState({});
   const [history, setHistory] = useState({});
-  
-  const [questions, setQuestions] = useState(allQuestions);
   const [showEmptyList, setShowEmptyList] = useState(false);
   const [hideEmptyQuestions, setHideEmptyQuestions] = useState(false);
   const [hideCorrectQuestions, setHideCorrectQuestions] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // ユーザーが切り替わった時にデータを読み込む
-  useEffect(() => {
-    const savedHistory = localStorage.getItem(`quiz_history_${userName}`);
-    const savedAnswers = localStorage.getItem(`quiz_answers_${userName}`);
-    setHistory(savedHistory ? JSON.parse(savedHistory) : {});
-    setAnswers(savedAnswers ? JSON.parse(savedAnswers) : {});
-    localStorage.setItem('quiz_active_user', userName);
-  }, [userName]);
-
-  // 状態が変化した時に保存する
-  useEffect(() => {
-    localStorage.setItem(`quiz_history_${userName}`, JSON.stringify(history));
-    localStorage.setItem(`quiz_answers_${userName}`, JSON.stringify(answers));
-  }, [history, answers, userName]);
-
-  useEffect(() => {
-    localStorage.setItem('quiz_dark_mode', isDarkMode);
-  }, [isDarkMode]);
 
   useEffect(() => {
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
@@ -14543,57 +14521,73 @@ function App() {
     <div className={isDarkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex text-slate-900 dark:text-slate-100 transition-colors duration-300 relative">
         
+        {/* モバイル用オーバーレイ */}
         {isSidebarOpen && (
-          <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
+          <div 
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
         )}
 
+        {/* サイドバー (NO.一覧) */}
         <aside className={"w-72 shrink-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 h-screen sticky top-0 flex-col z-40 fixed lg:relative transition-transform " + (isSidebarOpen ? 'flex' : 'hidden')}>
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2"><span>👤</span> ユーザー設定</h2>
-              <button className="lg:hidden p-1" onClick={() => setIsSidebarOpen(false)}><span>❌</span></button>
-            </div>
-            <input 
-              type="text" 
-              value={userName} 
-              onChange={(e) => setUserName(e.target.value.trim() || 'Guest')}
-              className="w-full p-2 text-sm border rounded bg-slate-50 dark:bg-slate-900 dark:border-slate-700"
-              placeholder="ユーザー名を入力"
-            />
-            <p className="text-[10px] text-slate-400 mt-1">※名前を変更するとデータを切り替えます</p>
-          </div>
-
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
             <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2 text-sm">
               <span>📋</span> NO. 一覧 ({allQuestions.length})
             </h2>
+            <button className="lg:hidden p-1 text-slate-500" onClick={() => setIsSidebarOpen(false)}>
+              <span>❌</span>
+            </button>
           </div>
           
+          <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] flex gap-3 justify-center text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800"></span>未答</div>
+            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-100 border border-green-300 dark:bg-green-900/40 dark:border-green-700"></span>正解</div>
+            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-100 border border-yellow-300 dark:bg-yellow-900/40 dark:border-yellow-700"></span>空欄</div>
+          </div>
+
           <div className="flex-1 overflow-y-auto p-2">
             <div className="grid grid-cols-5 gap-1.5">
               {allQuestions.map((q) => {
-                const isHidden = (hideEmptyQuestions && !q.answer.trim() && !q.explanation.trim()) || (hideCorrectQuestions && history[q.id]?.[history[q.id].length - 1] === true);
+                const isHideEmpty = hideEmptyQuestions && !q.answer.trim() && !q.explanation.trim();
+                const isHideCorrect = hideCorrectQuestions && history[q.id] && history[q.id][history[q.id].length - 1] === true;
+                const isHidden = isHideEmpty || isHideCorrect;
+                
                 const isEmpty = !q.answer.trim() && !q.explanation.trim();
-                const isCorrect = history[q.id]?.[history[q.id].length - 1] === true;
+                const isCorrect = history[q.id] && history[q.id][history[q.id].length - 1] === true;
 
-                let statusClass = "bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-600";
-                if (isEmpty) statusClass = "bg-yellow-50 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300";
-                else if (isCorrect) statusClass = "bg-green-50 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300";
+                let statusClass = "bg-white text-slate-700 hover:bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:border-slate-600";
+                let tooltipSuffix = "";
 
+                if (isEmpty) {
+                  statusClass = "bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:hover:bg-yellow-900/50 dark:border-yellow-700/50";
+                  tooltipSuffix = " (空欄)";
+                } else if (isCorrect) {
+                  statusClass = "bg-green-50 text-green-800 hover:bg-green-100 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 dark:border-green-700/50";
+                  tooltipSuffix = " (正解済)";
+                }
+                
                 const displayIndex = displayQuestions.findIndex(dq => dq.id === q.id);
+                const shortId = q.id.replace(/^(NO\.|Q\.?|問|問題)\s*/i, '');
+
                 return (
                   <button 
                     key={q.id}
                     onClick={() => {
                       if (!isHidden && displayIndex !== -1) {
                         const element = document.getElementById('question-' + displayIndex);
-                        if (element) window.scrollTo({ top: element.getBoundingClientRect().top + window.scrollY - 100, behavior: 'smooth' });
+                        if (element) {
+                          const y = element.getBoundingClientRect().top + window.scrollY - 100;
+                          window.scrollTo({ top: y, behavior: 'smooth' });
+                          if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                        }
                       }
                     }}
                     disabled={isHidden}
-                    className={"py-1.5 rounded border text-[11px] font-mono transition-colors " + statusClass + (isHidden ? ' opacity-30 cursor-not-allowed' : ' hover:bg-slate-100 dark:hover:bg-slate-700')}
+                    className={"py-1.5 px-1 rounded border text-[11px] font-mono text-center transition-colors shadow-sm " + statusClass + (isHidden ? ' opacity-30 cursor-not-allowed shadow-none' : ' cursor-pointer')}
+                    title={isHidden ? "[非表示] " + q.id + tooltipSuffix : q.id + tooltipSuffix + " へ移動"}
                   >
-                    {q.id.replace(/^(NO\.|Q)/i, '')}
+                    <span className="truncate block w-full">{shortId}</span>
                   </button>
                 )
               })}
@@ -14601,60 +14595,213 @@ function App() {
           </div>
         </aside>
 
+        {/* メイン領域 */}
         <div className="flex-1 flex flex-col items-center p-4 md:p-8 w-full max-w-full overflow-x-hidden">
-          {/* ツールバー、問題表示部分は元のコードと同様のため省略（ロジックは統合済み） */}
-          <div className="w-full max-w-4xl flex justify-between items-center mb-6 sticky top-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-4 py-3 rounded-2xl shadow-sm border dark:border-slate-700">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">☰</button>
-              <div className="text-xs font-bold text-blue-600 dark:text-blue-400">User: {userName}</div>
+          <div className="w-full max-w-4xl flex justify-between items-center mb-6 sticky top-4 z-10 bg-white/90 dark:bg-slate-800/90 backdrop-blur px-4 sm:px-6 py-3 rounded-2xl shadow-sm border border-transparent dark:border-slate-700">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="flex items-center gap-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700"
+                title="NO.一覧を開閉"
+              >
+                <span>☰</span>
+              </button>
             </div>
-            <div className="flex gap-2">
-              <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700">{isDarkMode ? '☀️' : '🌙'}</button>
-              <button onClick={handleReset} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold">全シャッフル</button>
+            
+            <div className="flex flex-wrap gap-2 items-center justify-end">
+              <button onClick={toggleDarkMode} className="p-2 mr-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">{isDarkMode ? '☀️' : '🌙'}</button>
+              <button
+                onClick={() => setHideCorrectQuestions(!hideCorrectQuestions)}
+                className={"flex items-center gap-1 sm:gap-2 px-3 py-2 rounded-lg transition-colors shadow-sm font-semibold text-sm sm:text-base " + (hideCorrectQuestions ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700')}
+              >
+                <span>{hideCorrectQuestions ? '✅' : '☑️'}</span>
+                <span className="hidden sm:inline">正解済を除外</span>
+                <span className="sm:hidden">正解除外</span>
+              </button>
+              <button onClick={handleResetWrongOnly} disabled={wrongCount === 0} className="flex items-center gap-1 sm:gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm font-semibold text-sm sm:text-base">
+                <span>⚠️</span><span className="hidden sm:inline">誤答のみシャッフル</span><span className="sm:hidden">誤答</span><span className="opacity-80">({wrongCount})</span>
+              </button>
+              <button onClick={handleReset} className="flex items-center gap-1 sm:gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-semibold text-sm sm:text-base">
+                <span>🔄</span><span className="hidden sm:inline">全問シャッフル</span><span className="sm:hidden">全問</span>
+              </button>
             </div>
           </div>
+
+          {emptyQuestions.length > 0 && (
+            <div className="w-full max-w-4xl mb-6 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 p-4 rounded-r-lg shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-400 font-bold">
+                  <span>⚠️</span> 解答・解説が空欄の問題があります ({emptyQuestions.length}問)
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowEmptyList(!showEmptyList)} className="px-3 py-1.5 text-sm font-medium bg-yellow-200 dark:bg-yellow-800/50 text-yellow-800 dark:text-yellow-200 rounded hover:bg-yellow-300 dark:hover:bg-yellow-700/50 transition-colors">
+                    <span>📜</span> {showEmptyList ? '一覧を隠す' : '一覧を表示'}
+                  </button>
+                  <button onClick={() => setHideEmptyQuestions(!hideEmptyQuestions)} className={"px-3 py-1.5 text-sm font-medium rounded transition-colors " + (hideEmptyQuestions ? "bg-blue-500 text-white hover:bg-blue-600 shadow-sm" : "bg-yellow-200 dark:bg-yellow-800/50 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-300 dark:hover:bg-yellow-700/50")}>
+                    <span>{hideEmptyQuestions ? '👁️' : '🚫'}</span> {hideEmptyQuestions ? '除外を解除' : 'これらを除外'}
+                  </button>
+                </div>
+              </div>
+              {showEmptyList && (
+                <div className="text-yellow-700 dark:text-yellow-300 text-sm flex flex-wrap gap-2 mt-3 p-3 bg-yellow-100/50 dark:bg-yellow-900/30 rounded border border-yellow-200/50 dark:border-yellow-800/30">
+                  {emptyQuestions.map(q => {
+                    const displayIndex = displayQuestions.findIndex(dq => dq.id === q.id);
+                    const isDisplayed = displayIndex !== -1;
+                    return (
+                      <button 
+                        key={q.id} 
+                        onClick={() => {
+                          if (isDisplayed) {
+                            const element = document.getElementById('question-' + displayIndex);
+                            if (element) {
+                              const y = element.getBoundingClientRect().top + window.scrollY - 100;
+                              window.scrollTo({ top: y, behavior: 'smooth' });
+                            }
+                          }
+                        }}
+                        disabled={!isDisplayed}
+                        title={isDisplayed ? "この問題へ移動" : "現在非表示です"}
+                        className={"px-2.5 py-1.5 rounded font-mono shadow-sm border text-xs sm:text-sm " + (isDisplayed ? 'bg-white dark:bg-yellow-900/60 border-yellow-200 dark:border-yellow-800/50 hover:bg-yellow-50 dark:hover:bg-yellow-800 cursor-pointer' : 'bg-white/50 dark:bg-yellow-900/30 border-yellow-200/50 dark:border-yellow-800/30 opacity-50 cursor-not-allowed')}
+                      >
+                        {q.id}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="w-full max-w-4xl space-y-8">
             {displayQuestions.map((q, index) => {
               const ansState = answers[q.id] || { selectedOptions: [] };
               const qHistory = history[q.id] || [];
+              const isWrongHistory = qHistory.length > 0 && qHistory[qHistory.length - 1] === false;
+              
               return (
-                <div id={"question-" + index} key={q.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden border dark:border-slate-700">
-                  <div className="bg-slate-800 dark:bg-slate-950 text-white px-6 py-4 flex justify-between items-center">
-                    <span className="font-bold">問題 {index + 1} ({q.id})</span>
-                    <div className="flex gap-1">
-                      {[...qHistory].reverse().map((res, i) => (
-                        <span key={i}>{res ? '⭕' : '❌'}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <div className="whitespace-pre-wrap mb-6 text-lg">{q.question}</div>
-                    <div className="space-y-2">
-                      {q.options.map((opt, idx) => (
-                        <button 
-                          key={idx} 
-                          disabled={ansState.answered}
-                          onClick={() => handleOptionClick(q.id, opt, q.answer)}
-                          className={`w-full text-left p-4 border rounded-xl ${ansState.selectedOptions.includes(opt) ? 'bg-blue-100 border-blue-500 dark:bg-blue-900/40' : 'bg-white dark:bg-slate-800'}`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                    {ansState.answered && (
-                      <div className="mt-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
-                        <div className="font-bold text-green-700 mb-2">正解: {q.answer}</div>
-                        <div className="text-sm opacity-80">{q.explanation}</div>
+                <div id={"question-" + index} key={q.id} className={"bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden flex flex-col border-2 transition-colors " + (isWrongHistory ? 'border-red-300 dark:border-red-500/50' : 'border-transparent dark:border-slate-700')}>
+                  <div className="bg-slate-800 dark:bg-slate-950 text-white px-6 py-4 flex items-center justify-between">
+                    <h2 className="text-xl font-bold flex items-center flex-wrap gap-2">
+                      <span className="bg-slate-700 dark:bg-slate-800 px-3 py-1 rounded-md text-sm whitespace-nowrap">問題{index + 1}</span>
+                      <span className="text-lg">{q.id}</span>
+                      <div className="flex items-center gap-2 ml-2 text-sm text-slate-300 dark:text-slate-400 bg-slate-700/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-lg">
+                        <span className="text-xs hidden sm:inline">過去正誤（左から新しい順）</span>
+                        <span className="text-xs sm:hidden">過去</span>
+                        <div className="flex gap-1">
+                          {Array.from({ length: 5 }).map((_, i) => {
+                            const res = [...qHistory].reverse()[i];
+                            return (
+                              <span key={i} title={res === true ? "正解" : res === false ? "不正解" : "まだ"} className="text-base leading-none">
+                                {res === true ? '🙆‍♂️' : res === false ? '🙅' : '🥷'}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
+                    </h2>
+                  </div>
+                  <div className="p-6 md:p-8">
+                    <div className="prose dark:prose-invert max-w-none mb-6 whitespace-pre-wrap text-slate-800 dark:text-slate-200 text-lg leading-relaxed">{q.question}</div>
+                    
+                    {q.options.length > 0 ? (
+                      <div className="space-y-3 mb-6">
+                        {q.options.map((opt, idx) => {
+                          const isSelected = ansState.selectedOptions?.includes(opt);
+                          const optMatch = opt.match(/^([A-E])\./i);
+                          const optChar = optMatch ? optMatch[1].toUpperCase() : null;
+                          const expectedChars = getExpectedChars(q.answer);
+                          const isExpected = optChar ? expectedChars.includes(optChar) : q.answer.includes(opt.replace(/^([A-E])\.\s*/i, '').trim());
+                          let btnClass = "w-full text-left p-4 border rounded-xl transition-all duration-200 ";
+                          if (!ansState.answered) {
+                            if (isSelected) btnClass += "bg-blue-100 border-blue-500 text-blue-900 dark:bg-blue-900/40 dark:border-blue-500 dark:text-blue-100";
+                            else btnClass += "bg-white border-slate-200 hover:border-blue-400 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-blue-500";
+                          } else {
+                            btnClass += "cursor-default ";
+                            if (isSelected && isExpected) btnClass += "bg-green-100 border-green-500 text-green-900 dark:bg-green-900/40 dark:border-green-500 dark:text-green-100 font-medium";
+                            else if (isSelected && !isExpected) btnClass += "bg-red-100 border-red-500 text-red-900 dark:bg-red-900/40 dark:border-red-500 dark:text-red-100 font-medium";
+                            else if (!isSelected && isExpected) btnClass += "bg-white border-green-500 border-2 text-slate-700 dark:bg-slate-800 dark:border-green-500 dark:text-slate-300";
+                            else btnClass += "bg-slate-50 border-slate-200 text-slate-400 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-500 opacity-60";
+                          }
+                          return (
+                            <button key={idx} disabled={ansState.answered} onClick={() => handleOptionClick(q.id, opt, q.answer)} className={btnClass}>
+                              <div className="flex items-center justify-between">
+                                <span>{opt}</span>
+                                {ansState.answered && (isSelected && isExpected ? <span>✔️</span> : isSelected && !isExpected ? <span>❌</span> : !isSelected && isExpected ? <span className="opacity-50">✔️</span> : null)}
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {!ansState.answered && getExpectedChars(q.answer).length > 1 && (
+                          <button onClick={() => handleConfirmAnswer(q.id, q.answer)} className="mt-4 w-full py-4 bg-blue-50 text-blue-700 border-2 border-dashed border-blue-300 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-700/50 font-bold rounded-xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"><span>✅</span> 解答を確定する</button>
+                        )}
+                      </div>
+                    ) : (
+                      !ansState.answered && (
+                        <div className="mb-6 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col items-center">
+                          <p className="text-slate-600 dark:text-slate-400 mb-4 font-medium text-center">この問題には選択肢がありません。<br/>答えを思い浮かべてから解答を表示してください。</p>
+                          <button onClick={() => handleConfirmAnswer(q.id, q.answer)} className="px-6 py-3 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-bold rounded-xl hover:bg-blue-200 transition-colors flex items-center gap-2"><span>👁️</span> 解答と解説を確認する</button>
+                        </div>
+                      )
                     )}
-                    {!ansState.answered && (
-                       <button onClick={() => handleConfirmAnswer(q.id, q.answer)} className="mt-4 w-full py-3 bg-slate-100 dark:bg-slate-700 rounded-xl font-bold">解答を確認</button>
+                    {ansState.answered && (
+                      <div className="animate-in fade-in slide-in-from-top-4 duration-300 mt-6 border-t border-slate-100 dark:border-slate-700 pt-6">
+                        
+                        {/* スクロールアンカー */}
+                        <div id={"answer-area-" + q.id}></div>
+
+                        {ansState.isCorrect === null && (
+                           <div className="mb-6 flex flex-col items-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800/50">
+                              <p className="text-orange-800 dark:text-orange-300 font-medium mb-3">結果を記録してください</p>
+                              <div className="flex gap-4">
+                                <button onClick={() => handleSelfJudge(q.id, true)} className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-bold flex items-center gap-2"><span>✔️</span> 正解した</button>
+                                <button onClick={() => handleSelfJudge(q.id, false)} className="px-5 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-bold flex items-center gap-2"><span>❌</span> 間違えた</button>
+                              </div>
+                           </div>
+                        )}
+                        <div className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-5 rounded-r-xl shadow-sm mb-6">
+                          <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold text-lg mb-2"><span>✅</span> Answer</div>
+                          <div className="text-green-900 dark:text-green-100 font-medium whitespace-pre-wrap">{q.answer || "解答が指定されていません"}</div>
+                        </div>
+
+                        {index < displayQuestions.length - 1 && (
+                          <button 
+                            onClick={() => {
+                              const element = document.getElementById('question-' + (index + 1));
+                              if (element) {
+                                const y = element.getBoundingClientRect().top + window.scrollY - 100;
+                                window.scrollTo({ top: y, behavior: 'smooth' });
+                              }
+                            }}
+                            className="my-6 w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 shadow-sm"
+                          >
+                            次の問題へ <span>⬇️</span>
+                          </button>
+                        )}
+
+                        {q.explanation && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-5 rounded-r-xl shadow-sm">
+                            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400 font-bold text-lg mb-2"><span>ℹ️</span> Explanation</div>
+                            <div className="text-blue-900 dark:text-blue-100 text-sm md:text-base leading-relaxed whitespace-pre-wrap">{q.explanation}</div>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
               );
             })}
+          </div>
+
+          <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+            <button onClick={scrollToTop} className="p-3 bg-slate-800 dark:bg-slate-700 text-white rounded-full shadow-xl hover:bg-slate-700 dark:hover:bg-slate-600 transition-all opacity-80 hover:opacity-100 focus:outline-none" title="ページ上部へ">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+            </button>
+            <button onClick={scrollToNextUnanswered} className="p-3 bg-blue-600 text-white rounded-full shadow-xl hover:bg-blue-700 transition-all opacity-80 hover:opacity-100 focus:outline-none" title="最初の未解答問題へ">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            </button>
+            <button onClick={scrollToBottom} className="p-3 bg-slate-800 dark:bg-slate-700 text-white rounded-full shadow-xl hover:bg-slate-700 dark:hover:bg-slate-600 transition-all opacity-80 hover:opacity-100 focus:outline-none" title="ページ下部へ">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+            </button>
           </div>
         </div>
       </div>
